@@ -161,7 +161,6 @@ Attacks caught: 16 of 17. Benign requests wrongly blocked: 0.
 | C5 Human approval | Excessive agency | Manage | ISO 27001: A.8.12 Data leakage prevention. ISO 42001: A.9.2 Processes for responsible use |
 | C6 Audit log | Logging and monitoring | Measure, Manage | ISO 27001: A.8.15 Logging. ISO 42001: A.6.2.8 Recording of event logs |
 
-NOTE TO SELF: check the category names against the current OWASP list, and look up the exact ISO clause numbers in your own copies of the standards. Do not publish clause numbers you have not verified.
 
 ## Known limitations
 
