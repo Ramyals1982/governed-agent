@@ -1,0 +1,5 @@
+openai
+presidio-analyzer
+presidio-anonymizer
+pyyaml
+spacy
