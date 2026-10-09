@@ -1,0 +1,59 @@
+agent:
+  name: security-ops-assistant
+  version: 0.1.0
+  owner: Ramya L Swaminaathan
+  purpose: Answers security policy questions and raises tickets (demo)
+  environment: local demo, mocked tools, no real systems
+
+model:
+  provider: OpenRouter
+  name: deepseek/deepseek-chat
+  temperature: 0
+  note: model is a third party; it can change behind the same name
+
+tools:
+  - name: search_policies
+    effect: read-only
+    risk: low
+    policy: always allowed
+  - name: create_ticket
+    effect: writes a record
+    risk: medium
+    policy: allowed, max 5 per request
+  - name: send_email
+    effect: external communication
+    risk: high
+    policy: internal domain allowed; external needs human approval; malformed denied
+
+controls:
+  - id: C1
+    name: PII redaction
+    where: user input, before the model
+    implementation: Presidio plus Indian mobile, PAN, Aadhaar patterns
+  - id: C2
+    name: Input injection check
+    where: user input, before the model
+    implementation: regex patterns
+  - id: C3
+    name: Tool output scan
+    where: tool results, before the model
+    implementation: regex patterns, removes flagged sentences
+  - id: C4
+    name: Tool policy
+    where: dispatcher
+    implementation: Python rules, fail closed
+  - id: C5
+    name: Human approval
+    where: dispatcher
+    implementation: CLI prompt, auto-deny when unattended
+  - id: C6
+    name: Audit log
+    where: all steps
+    implementation: SQLite, insert-only by convention
+
+known_limitations:
+  - Pattern-based injection checks miss paraphrases
+  - Output from the model is not checked
+  - Names and addresses are not redacted
+  - Audit log is a local file with no tamper protection
+  - Approval by CLI prompt can be rushed
