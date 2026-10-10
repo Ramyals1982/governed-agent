@@ -64,11 +64,10 @@ The same prompts were run through the agent before and after governance. The mod
 
 **Evidence files:** evidence/baseline_run1_before.txt, evidence/baseline_run2_before.txt, evidence/baseline_run7_final.txt, evidence/redteam_before_fixes.txt, evidence/redteam_after_fixes.txt
 
-NOTE TO SELF: check each row above against your saved output. If a row does not match what you saw, change the row, not the files.
 
 ### B. Control tests (no model)
 
-21 or more test cases run directly against the controls with `redteam.py`. This does not call the model, so results are repeatable.
+21 test cases run directly against the controls with `redteam.py`. This does not call the model, so results are repeatable.
 
 **Summary:**
 - Before fixes: 14 of 17 attacks caught
@@ -189,7 +188,7 @@ Attacks caught: 16 of 17. Benign requests wrongly blocked: 0.
 python -m venv venv
 venv\Scripts\activate
 pip install openai presidio-analyzer presidio-anonymizer pyyaml
-python -m spacy download en_core_web_lg.
+python -m spacy download en_core_web_lg
 $env:OPENROUTER_API_KEY="your-key"
 python register.py        # records the manifest in the audit log
 python baseline.py        # runs the agent prompts
@@ -215,4 +214,3 @@ python show_decisions.py  # shows policy decisions, approvals, blocks
 | `redteam.py` | Direct tests of the controls |
 | `show_log.py`, `show_decisions.py` | Read the audit log |
 
-NOTE TO SELF: do not publish `audit.db`, `audit_dev.db` or the baseline output files without checking them first. They contain every prompt and tool call from your testing.
