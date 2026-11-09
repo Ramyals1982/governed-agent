@@ -1,19 +1,12 @@
-import sqlite3
 import json
-import time
+import sqlite3
+
+import audit_chain
 
 db = sqlite3.connect("audit.db")
-db.execute("""CREATE TABLE IF NOT EXISTS audit (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts TEXT,
-    trace_id TEXT,
-    event TEXT,
-    detail TEXT)""")
-db.commit()
+audit_chain.ensure_schema(db)   # creates the table, adds hash columns, seals older rows once, blocks edits/deletes
+
 
 def log(trace_id, event, detail):
-    db.execute(
-        "INSERT INTO audit (ts, trace_id, event, detail) VALUES (?,?,?,?)",
-        (time.strftime("%Y-%m-%d %H:%M:%S"), trace_id, event, json.dumps(detail)),
-    )
-    db.commit()
+    """Append one row to the hash-chained audit log (each row's hash covers the previous row)."""
+    audit_chain.append_event(db, trace_id, event, json.dumps(detail))

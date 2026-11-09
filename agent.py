@@ -6,6 +6,8 @@ from dispatcher import dispatch
 from guardrails import redact
 from injection import scan_text
 import audit
+import output_guard
+from resgister import gate_check
 
 SYSTEM_PROMPT = (
     "You are a security operations assistant. "
@@ -13,7 +15,13 @@ SYSTEM_PROMPT = (
 )
 
 
+def startup_gate():
+    """MAS Section 4: refuse to run unless inventory, materiality and 2LoD sign-off checks pass."""
+    return gate_check()  # raises MASComplianceError; do not catch it
+
+
 def run_agent(user_message, max_steps=5):
+    startup_gate()
     trace_id = str(uuid.uuid4())[:8]
     state = {"tickets": 0}
 
@@ -43,6 +51,9 @@ def run_agent(user_message, max_steps=5):
 
         if not message.tool_calls:
             answer = message.content or "(model returned no text)"
+            answer, leaked = output_guard.scan(answer)
+            if leaked:
+                audit.log(trace_id, "output_redacted", {"findings": leaked})
             audit.log(trace_id, "final_answer", {"text": answer})
             return answer
 

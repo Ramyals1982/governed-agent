@@ -1,5 +1,6 @@
 import approval
 import audit
+import output_guard
 import re
 from injection import sanitize_tool_result
 from tools import TOOL_FUNCTIONS
@@ -25,6 +26,8 @@ def decide(tool, args, state):
         recipient = str(args.get("to", "")).lower()
         if not re.fullmatch(r"[^@\s,;<>]+@[^@\s,;<>]+", recipient):
             return "deny", "malformed or multiple recipients"
+        if output_guard.is_sensitive(str(args.get("body", ""))):
+            return "deny", "email body contains a secret or personal data"
         domain = recipient.rsplit("@", 1)[-1]
         if domain == INTERNAL_DOMAIN:
             return "allow", "internal recipient"

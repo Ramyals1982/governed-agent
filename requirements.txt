@@ -3,3 +3,6 @@ presidio-analyzer
 presidio-anonymizer
 pyyaml
 spacy
+cryptography
+streamlit>=1.30
+pytest

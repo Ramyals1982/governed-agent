@@ -5,3 +5,11 @@ __pycache__/
 .env
 *_fixed.py
 .vscode/
+# 2LoD private signing keys must never be committed
+*_private.pem
+ccor_*.pem
+# any private key material, whatever the file is called
+*.pem
+!mas_2lod_public.pem
+PRIVATE_PEM
+*PRIVATE*

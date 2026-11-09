@@ -5,6 +5,20 @@ agent:
   purpose: Answers security policy questions and raises tickets (demo)
   environment: local demo, mocked tools, no real systems
 
+# MAS AIRM Section 4 - objective intake. 1LoD declares facts; the 2LoD rubric (mas_rubric.py)
+# computes Impact/Complexity/Reliance and challenges declared_inherent_risk.
+mas_use_case_profile:
+  system_id: security-ops-assistant        # must equal agent.name
+  business_line: Security Operations (demo)
+  customer_facing: false
+  financial_impact_tier: NONE              # NONE | ADVISORY | TRANSACTIONAL
+  data_sensitivity: INTERNAL               # PUBLIC | INTERNAL | CONFIDENTIAL_PII
+  architecture_type: AUTONOMOUS_AGENT      # RULE_BASED | RAG_LLM | AUTONOMOUS_AGENT
+  declared_tool_count: 3                   # must match tools.py (checked at registration)
+  human_oversight_mode: EXCEPTION_ONLY     # FULL_HUMAN_REVIEW | EXCEPTION_ONLY | AUTONOMOUS
+  kill_switch_owner: Ramya L Swaminaathan
+  declared_inherent_risk: HIGH             # LOW | MEDIUM | HIGH - must equal the 2LoD computed tier
+
 model:
   provider: OpenRouter
   name: deepseek/deepseek-chat
@@ -49,11 +63,20 @@ controls:
   - id: C6
     name: Audit log
     where: all steps
-    implementation: SQLite, insert-only by convention
+    implementation: SQLite, insert-only triggers, SHA-256 hash chain, daily signed Merkle roots (audit_chain.py)
+  - id: C7
+    name: Output guard
+    where: final answer to the user (agent.py) and outbound email body (dispatcher.py)
+    implementation: output_guard.py - secret patterns plus PII; answers are redacted, emails with secrets are denied
+  - id: C8
+    name: MAS Section 4 startup gate
+    where: agent start (agent.py -> resgister.gate_check)
+    implementation: inventory entry for the current hash, 2LoD rubric, Ed25519 2LoD approval (MEDIUM and HIGH), residual risk within Board appetite, model binding, kill-switch
 
 known_limitations:
   - Pattern-based injection checks miss paraphrases
-  - Output from the model is not checked
+  - Output guard matches secret and PII patterns only; it does not understand confidential prose
   - Names and addresses are not redacted
-  - Audit log is a local file with no tamper protection
+  - Tool results are logged raw, so audit.db can hold unredacted data
+  - Audit log is tamper-evident, not tamper-proof; anyone with file access can rebuild a whole chain, so the daily Merkle roots must be exported to storage the agent cannot write
   - Approval by CLI prompt can be rushed
