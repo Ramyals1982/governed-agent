@@ -22,6 +22,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+import evidence
 import resgister
 from resgister import MASComplianceError
 
@@ -192,6 +193,15 @@ def section_readiness(checks):
     for c in checks:
         icon, colour = ("PASS", "green") if c["passed"] else ("FAIL", "red")
         st.markdown(f":{colour}[**{icon}**] ({c['id']}) **{c['name']}**: {c['detail']}")
+    try:
+        items = evidence.evaluate(BASE)
+        st.subheader("Evidence register (policy/evidence_policy.yaml)")
+        st.dataframe(pd.DataFrame([{
+            "Evidence": i["id"], "Status": i["status"], "Controls": ", ".join(i["controls"]),
+            "Blocks gate": "yes" if i["blocks_gate"] else "no", "Age (days)": i["age_days"],
+            "Expires": (i["expires_at"] or "-")[:10], "Detail": i["reason"]} for i in items]), hide_index=True)
+    except evidence.EvidenceError as err:
+        st.error(f"Evidence policy could not be read: {err}")
 
 
 def section_actions(boot, chain_check):

@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT))
 
 import mas_rubric  # noqa: E402
 import resgister  # noqa: E402
+import support_fixtures  # noqa: E402
 from resgister import MASComplianceError  # noqa: E402
 
 
@@ -27,7 +28,7 @@ class Section4Base(unittest.TestCase):
         shutil.copy(ROOT / "manifest.yaml", self.tmp / "manifest.yaml")
         for name in ("tools.py", "dispatcher.py", "approval.py", "agent.py", "llm.py"):
             shutil.copy(ROOT / name, self.tmp / name)
-        shutil.copytree(ROOT / "evidence", self.tmp / "evidence")
+        support_fixtures.record_fixture_evidence(self.tmp)   # synthetic, fresh red-team evidence
         self.private = self.tmp / "ccor_private.pem"
         resgister.generate_keys(self.private, self.tmp / resgister.PUBLIC_KEY_FILE)
         self.db = self.tmp / "audit.db"
@@ -544,8 +545,7 @@ class TestConsoleViews(Section4Base):
         self.assertIn("NOT WIRED", {c["id"]: c for c in resgister.control_readiness(self.tmp)}["b"]["detail"])
         shutil.copy(ROOT / "agent.py", self.tmp / "agent.py")          # the real, wired files
         shutil.copy(ROOT / "dispatcher.py", self.tmp / "dispatcher.py")
-        (self.tmp / "evidence").mkdir()
-        (self.tmp / "evidence" / "redteam_results.md").write_text("results")
+        support_fixtures.record_fixture_evidence(self.tmp)
         self.approve()
         by_id = {c["id"]: c for c in resgister.control_readiness(self.tmp)}
         self.assertTrue(all(c["passed"] for c in by_id.values()), by_id)

@@ -52,8 +52,12 @@ INTERNAL_MODEL_PROVIDERS = {"internal", "self-hosted", "on-prem"}
 
 
 def rubric_sha256():
-    """Hash of this file (line endings normalised) - pinned into every approval."""
+    """Hash of this file plus policy/evidence_policy.yaml (line endings normalised) - pinned into every approval."""
     data = Path(__file__).read_bytes().replace(b"\r\n", b"\n")
+    # The evidence policy (how fresh and how sufficient the evidence must be) is part of the locked rubric.
+    policy = Path(__file__).resolve().parent / "policy" / "evidence_policy.yaml"
+    if policy.is_file():
+        data += b"\n--evidence_policy--\n" + policy.read_bytes().replace(b"\r\n", b"\n")
     return hashlib.sha256(data).hexdigest()
 
 

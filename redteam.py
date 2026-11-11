@@ -1,3 +1,5 @@
+import os
+
 import approval
 approval.ask = lambda tool, args: (False, "redteam-auto-deny")
 
@@ -131,7 +133,8 @@ def main():
     summary = f"Attacks caught: {caught} of {attacks}. Benign requests wrongly blocked: {false_positives}."
     print("\n" + summary)
 
-    with open("redteam_results.md", "w", encoding="utf-8") as f:
+    os.makedirs("evidence", exist_ok=True)
+    with open(os.path.join("evidence", "redteam_results.md"), "w", encoding="utf-8") as f:
         f.write("| # | Layer | Type | Test | Result |\n|---|---|---|---|---|\n")
         for i, layer, kind, desc, verdict, note in rows:
             f.write(f"| {i} | {layer} | {kind} | {desc} | {verdict} |\n")

@@ -30,6 +30,7 @@ from pathlib import Path
 import yaml
 
 import audit_chain
+import evidence
 import mas_rubric as rubric
 
 PUBLIC_KEY_FILE = "mas_2lod_public.pem"
@@ -246,20 +247,21 @@ def verify_model_binding(manifest, base):
     return actual
 
 
-def mitigation_checks(base, profile, oversight):
-    """Controls verified from the code and files on every boot (not self-declared)."""
+def mitigation_checks(base, profile, oversight, now=None):
+    """Controls verified from the code and files on every boot (not self-declared).
+    red_team_evidence is true only while the red-team evidence is ACCEPTED: recorded, unchanged,
+    sufficient and inside the validity window set by policy/evidence_policy.yaml."""
     base = Path(base)
-    ev = base / "evidence"
-    red = ev.is_dir() and any(f.is_file() and f.stat().st_size > 0 for f in ev.glob("redteam*"))
+    red, _ = evidence.gate_status(base, now)
     return {"output_guard_on_answers": _uses_output_guard(base / "agent.py", "scan"),
             "output_guard_on_email": _uses_output_guard(base / "dispatcher.py", "is_sensitive"),
             "human_approval_enforced": oversight["mode"] != "AUTONOMOUS",
             "kill_switch_owner_assigned": bool(str(profile.get("kill_switch_owner") or "").strip()),
-            "red_team_evidence": bool(red)}
+            "red_team_evidence": red}
 
 
 # ---------------------------------------------------------------- assessment (2LoD challenge)
-def assess(base_dir=".", db_path=None, log=True):
+def assess(base_dir=".", db_path=None, log=True, now=None):
     base = Path(base_dir)
     manifest_path, tools_path = base / "manifest.yaml", base / "tools.py"
     db = db_path or base / "audit.db"
@@ -311,7 +313,7 @@ def assess(base_dir=".", db_path=None, log=True):
                                               oversight["approval_tools"] or "no tool"))
     scores = rubric.score(profile, caps, rubric.is_third_party_model(provider))
     computed = rubric.tier(scores, profile)
-    mitigations = mitigation_checks(base, profile, oversight)
+    mitigations = mitigation_checks(base, profile, oversight, now)
     residual, missing = rubric.residual_tier(computed, mitigations)
     m_hash, t_hash, combined = file_hashes(manifest_path, tools_path)
 
@@ -339,10 +341,14 @@ def assess(base_dir=".", db_path=None, log=True):
         if log:
             log_event(db, "2LoD_RESIDUAL_RISK_EXCEEDS_APPETITE", {
                 "system_id": profile["system_id"], "inherent": computed, "residual": residual,
-                "appetite_max_residual": rubric.BOARD_RISK_APPETITE_MAX_RESIDUAL, "missing_mitigations": missing})
+                "appetite_max_residual": rubric.BOARD_RISK_APPETITE_MAX_RESIDUAL, "missing_mitigations": missing,
+                "evidence": evidence.gate_status(base, now)[1]})
+        ev_note = ""
+        if "red_team_evidence" in missing:
+            ev_note = " [evidence: " + "; ".join(evidence.gate_status(base, now)[1]) + "]"
         raise MASComplianceError(
-            "Residual risk %s exceeds Board risk appetite (max %s). Inherent %s; unverified mitigations: %s"
-            % (residual, rubric.BOARD_RISK_APPETITE_MAX_RESIDUAL, computed, ", ".join(missing) or "none"))
+            "Residual risk %s exceeds Board risk appetite (max %s). Inherent %s; unverified mitigations: %s%s"
+            % (residual, rubric.BOARD_RISK_APPETITE_MAX_RESIDUAL, computed, ", ".join(missing) or "none", ev_note))
     return result
 
 
@@ -399,7 +405,7 @@ def approve(reviewer, key_file=None, days=90, base_dir=".", db_path=None, now=No
     (a file path, or key_pem bytes held in memory by the dashboard)."""
     base = Path(base_dir)
     db = db_path or base / "audit.db"
-    a = assess(base_dir, db)  # never approve something that fails the 2LoD checks
+    a = assess(base_dir, db, now=now)  # never approve something that fails the 2LoD checks
     if not reviewer or not reviewer.strip():
         raise MASComplianceError("--reviewer is required")
     if reviewer.strip().lower() == str(a["owner"]).strip().lower():
@@ -722,7 +728,7 @@ def boot_status(base_dir=".", db_path=None, public_key_path=None, now=None):
            "kill_switch": kill_switch_state(db, pub_path), "decision": None}
     failed, pending = [], []
     try:
-        a = assess(base_dir, db, log=False)
+        a = assess(base_dir, db, log=False, now=now)
         out["assessment"] = a
     except MASComplianceError as err:
         failed.append(str(err))
@@ -733,7 +739,10 @@ def boot_status(base_dir=".", db_path=None, public_key_path=None, now=None):
     if a:
         dec = latest_decision(db, a["system_id"], a["combined_sha256"], pub_path)
         out["decision"] = dec[0] if dec else None
-        if dec and dec[0] == "REJECT":
+        ev_ok, ev_why = evidence.gate_status(base, now)
+        if not ev_ok:
+            failed.append("Required evidence is not current: " + "; ".join(ev_why))
+        elif dec and dec[0] == "REJECT":
             failed.append(f"2LoD flagged an effective-challenge failure on this hash ({dec[1]['actor']}: {dec[2].get('reason')})")
         elif not registration_state(db, a)[0]:
             out["status_override"] = "NOT_REGISTERED"
@@ -786,10 +795,14 @@ def control_readiness(base_dir=".", db_path=None, public_key_path=None):
                    "detail": "; ".join([f"{f}: {'present' if ok else 'MISSING'}" for f, ok in present.items()] + [
                        "answer scan in agent.py: " + ("wired" if wired_answer else "NOT WIRED"),
                        "email-body block in dispatcher.py: " + ("wired" if wired_email else "NOT WIRED")])})
-    ev_dir = base / "evidence"
-    red = sorted(f.name for f in ev_dir.glob("redteam*") if f.is_file() and f.stat().st_size > 0) if ev_dir.is_dir() else []
-    checks.append({"id": "c", "name": "Red-team evidence present in evidence/", "passed": bool(red),
-                   "detail": ", ".join(red) if red else "no non-empty redteam* file in evidence/"})
+    try:
+        items = evidence.evaluate(base)
+        ok, _ = evidence.gate_status(base)
+        detail = "; ".join(f"{i['id']}: {i['status']} ({i['reason']})" for i in items)
+    except evidence.EvidenceError as err:
+        ok, detail = False, str(err)
+    checks.append({"id": "c", "name": "Evidence is current and sufficient (red-team, within policy age limit)",
+                   "passed": ok, "detail": detail})
     try:
         hs = hash_status(base, db_path, public_key_path)
         detail = {"VERIFIED": "matches " + hs["baseline"]["source"] if hs["baseline"] else "",
@@ -928,7 +941,14 @@ def gate_check(base_dir=".", db_path=None, public_key_path=None, now=None):
         log_event(db, "mas_gate_blocked", {"reason": "emergency kill-switch active", "kill_switch": ks})
         raise MASComplianceError("EMERGENCY KILL-SWITCH ACTIVE (activated by %s at %s: %s). "
                                  "Only a signed 2LoD release can lift it." % (ks["activated_by"], ks["activated_at"], ks["reason"]))
-    a = assess(base_dir, db)
+    a = assess(base_dir, db, now=now)
+    # Evidence the 2LoD policy marks as blocking must be current at EVERY tier. Residual-risk arithmetic alone
+    # would only catch it for systems whose residual lands above the Board appetite.
+    ev_ok, ev_why = evidence.gate_status(base, now)
+    if not ev_ok:
+        log_event(db, "mas_gate_blocked", {"system_id": a["system_id"], "reason": "required evidence is not current",
+                                           "evidence": ev_why, "combined_sha256": a["combined_sha256"]})
+        raise MASComplianceError("Required evidence is not current: " + "; ".join(ev_why))
     decision = latest_decision(db, a["system_id"], a["combined_sha256"], pub_path)
     if decision and decision[0] == "REJECT":
         log_event(db, "mas_gate_blocked", {"system_id": a["system_id"], "reason": "2LoD flagged effective challenge failure",

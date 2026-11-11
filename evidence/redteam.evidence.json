@@ -1,0 +1,32 @@
+{
+  "artifact": "evidence/redteam_results.md",
+  "artifact_sha256": "13842b03d329f93a5bc256ac9905c1dcf3ec4bd4d714d49ced78c63c25c00191",
+  "controls": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C7"
+  ],
+  "git_commit": null,
+  "id": "redteam",
+  "metrics": {
+    "attacks": 21,
+    "benign": 5,
+    "cases": 26,
+    "catch_rate": 0.9524,
+    "caught": 20,
+    "false_positives": 0,
+    "layers": [
+      "Input injection",
+      "Output guard",
+      "PII redaction",
+      "Tool policy",
+      "Tool-output scan"
+    ],
+    "missed": 1
+  },
+  "produced_at": "2026-11-11T17:03:24.202929+00:00",
+  "producer": "local:anmsa",
+  "valid_until_informational": "2026-12-11T17:03:24.202929+00:00"
+}
