@@ -1,0 +1,21 @@
+# Who must review changes to which files. Branch protection ("Require review from Code Owners") makes this binding.
+#
+# 1LoD = the team that builds the agent. 2LoD = independent risk / compliance (CCOR).
+# This file defaults every owner to the repository owner so it works for a single-person demo. In that case the
+# separation of duties is simulated. For a real two-person split, replace the 2LoD lines below with a second
+# GitHub account or team, e.g.  @your-org/ccor-2lod  (the 2LoD must not be able to approve their own build, and
+# the builder must not be a member of the 2LoD team).
+
+# Default: 1LoD
+*                               @Ramyals1982
+
+# ---- 2LoD-owned: the rubric, the appetite, the evidence policy, the gate and the verifiers ----
+/mas_rubric.py                  @Ramyals1982
+/policy/                        @Ramyals1982
+/mas_2lod_public.pem            @Ramyals1982
+/resgister.py                   @Ramyals1982
+/evidence.py                    @Ramyals1982
+/audit_chain.py                 @Ramyals1982
+/scripts/                       @Ramyals1982
+/CODEOWNERS                     @Ramyals1982
+/.github/                       @Ramyals1982

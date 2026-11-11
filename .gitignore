@@ -13,3 +13,7 @@ ccor_*.pem
 !mas_2lod_public.pem
 PRIVATE_PEM
 *PRIVATE*
+
+.pytest_cache/
+local_utils/
+*.zip

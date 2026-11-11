@@ -1,0 +1,39 @@
+name: evidence-watch
+
+# Continuous control monitoring. Evidence expires on a clock, not when someone remembers. Every day this
+# re-evaluates the evidence register and opens one issue while anything is missing, insufficient or expired.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"      # 03:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Evaluate evidence
+        id: status
+        run: |
+          python evidence.py status | tee evidence_status.txt
+          python evidence.py status --strict > /dev/null || echo "stale=true" >> "$GITHUB_OUTPUT"
+      - name: Open an issue if evidence is not current
+        if: steps.status.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --label evidence-expired --state open --json number --jq 'length')
+          if [ "$existing" = "0" ]; then
+            gh label create evidence-expired --color B60205 --description "Required evidence is missing or expired" 2>/dev/null || true
+            body=$(printf 'The evidence register is not current. The Section 4 gate will refuse to start the agent while a blocking item is not ACCEPTED.\n\n```\n%s\n```\n\nFix: run `python redteam.py`, then `python evidence.py record redteam`, and commit the result.' "$(cat evidence_status.txt)")
+            gh issue create --title "Evidence expired or missing" --label evidence-expired --body "$body"
+          fi

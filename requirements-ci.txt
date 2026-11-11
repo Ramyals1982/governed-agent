@@ -1,0 +1,4 @@
+# What the governance test suites need. No model, no network, no Presidio.
+pyyaml
+cryptography
+pytest
