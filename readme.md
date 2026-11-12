@@ -3,7 +3,7 @@
 **An AI agent that cannot start until an independent "second line" has scored its risk, signed it off, and seen current test evidence.**
 A working reference implementation of how AI risk regulation (the MAS AI Risk Management Guidelines, Section 4) becomes controls that run, not a policy document.
 
-Built by Ramya Lakshmanan Swaminaathan · Python · 147 automated tests · demo agent with mocked tools, **not for production** ([what that means](docs/LIMITATIONS.md))
+Built by Ramya Lakshmanan Swaminaathan · Python · 153 automated tests · demo agent with mocked tools, **not for production** ([what that means](docs/LIMITATIONS.md))
 
 ---
 
@@ -18,7 +18,7 @@ Built by Ramya Lakshmanan Swaminaathan · Python · 147 automated tests · demo 
 ```bash
 pip install pyyaml cryptography pytest
 python demo.py            # five acts, runs in a throw-away copy
-python -m pytest -q       # 147 tests
+python -m pytest -q       # 153 tests; 5 skip unless Presidio is installed
 ```
 
 Abridged output of `demo.py`:
@@ -139,7 +139,7 @@ Agent runs and 21 direct control tests, before and after fixes ([full tables](do
 - **The model misreports its own actions.** It said an email was unsent when it was sent. The audit log recorded what actually happened.
 - **Indirect prompt injection works.** A harmless question retrieved a poisoned document and the agent tried to email an attacker. A filter on the user's message could never catch that.
 - **Controls on actions hold even when the model is fooled.** Policy and approval stopped the harmful action in runs where the model tried it.
-- **Control tests:** 14 of 17 attacks caught before fixes, 16 of 17 after, with no benign request wrongly blocked. One miss is kept on purpose as a known gap. The tests and the fixes were written by the same person, so this measures known phrasings, not unseen ones.
+- **Control tests:** 14 of 17 attacks caught before fixes, 16 of 17 after, with no benign request wrongly blocked. The latest run, 26 cases including the output guard, caught 20 of 21 attacks with no benign request blocked. One miss is kept on purpose as a known gap. The tests and the fixes were written by the same person, so this measures known phrasings, not unseen ones.
 
 ## What this demonstrates
 
@@ -150,7 +150,7 @@ Agent runs and 21 direct control tests, before and after fixes ([full tables](do
 | Effective challenge | The rubric recomputes the risk instead of trusting the declaration |
 | Assurance and evidence | Evidence with expiry ([`evidence.py`](evidence.py)); tamper-evident audit log ([`audit_chain.py`](audit_chain.py)) |
 | Agentic AI risk | Tool policy, human-in-the-loop, indirect-injection defence, output guard, kill-switch ([OWASP and ISO mapping](docs/OWASP_ISO_MAPPING.md)) |
-| Engineering discipline | 147 tests, CI, a check that blocks committed keys and databases, fail-closed design |
+| Engineering discipline | 153 tests, CI, a check that blocks committed keys and databases, fail-closed design |
 | Staying current | The US model risk guidance SR 11-7 was superseded by SR 26-2 in April 2026; the mapping reflects that and says where AI agents are covered only by analogy |
 | Honesty about limits | [LIMITATIONS.md](docs/LIMITATIONS.md) and [PATH_TO_PRODUCTION.md](docs/PATH_TO_PRODUCTION.md) |
 
